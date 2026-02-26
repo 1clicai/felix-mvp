@@ -13,7 +13,8 @@
     "dev:api": "npm run dev --workspace @felix/api",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
-    "db:push": "prisma db push"
+    "db:push": "prisma db push",
+    "test": "vitest run"
   },
   "workspaces": [
     "apps/*",
@@ -22,7 +23,9 @@
   "devDependencies": {
     "@biomejs/biome": "^1.8.0",
     "prisma": "^5.15.0",
+    "supertest": "^7.1.1",
     "tsx": "^4.7.0",
-    "typescript": "^5.4.0"
+    "typescript": "^5.4.0",
+    "vitest": "^2.1.4"
   }
 }

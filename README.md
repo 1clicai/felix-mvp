@@ -77,6 +77,14 @@ Suggested first tasks:
    npm run dev:founder
    ```
 
+## Auth Strategy (Phase 3)
+
+- **What**: Signed JWTs (12h TTL) issued via `POST /auth/token` using tenant slug + user email.
+- **Why**: Keeps MVP fast—no external IdP yet, but still enforces tenant membership and revocation via database lookups per request.
+- **Tradeoffs**: Tokens rely on shared secret and manual user provisioning. Future iterations can swap in Clerk/Auth0 without touching route guards (replace token issuer + verifier).
+
+See `docs/api/projects.md` for curl-ready examples.
+
 ## Notes
 
 - Do not commit secrets (`.env`, API keys, credentials)
