@@ -100,6 +100,15 @@ See `docs/api/projects.md`, `docs/api/prompts.md`, `docs/api/change-jobs.md`, an
 
 > ⚠️ Secrets are temporarily stored in plaintext DB columns behind `ConnectorSecretStore`. Rotate PATs frequently and plan to replace with KMS/encrypted storage + GitHub App installations.
 
+### Frontend (Dashboard) Workflow
+1. `npm run dev:api` (backend) and `npm run dev:dashboard` (frontend) with `.env` containing `NEXT_PUBLIC_API_BASE_URL`.
+2. Visit `http://localhost:3000`, paste a bearer token (from `POST /auth/token`).
+3. Pick a project → tabs for **Connectors**, **Prompts**, **Jobs**.
+   - Register & validate GitHub connector directly in UI.
+   - Submit prompts (optional connector linkage) and watch jobs appear.
+   - Job list auto-polls; statuses update as the stub worker runs.
+4. Manual test checklist lives in `docs/api/*.md` curl samples.
+
 ## Notes
 
 - Do not commit secrets (`.env`, API keys, credentials)
