@@ -1,30 +1,21 @@
-# Prompts & Change Jobs API
+# Change Jobs API
 
-## Submit Prompt
-```bash
-curl -X POST http://localhost:4000/api/prompts \
-  -H "Authorization: Bearer $TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "projectId": "<projectId>",
-    "promptText": "Add a new loyalty widget to the dashboard"
-  }'
-```
-Response includes the saved prompt and queued job IDs.
+Jobs are created automatically when prompts are submitted. Use these endpoints to inspect progress.
 
-## List Change Jobs for a Project
+## List Jobs for a Project
 ```bash
 curl http://localhost:4000/api/projects/<projectId>/change-jobs \
   -H "Authorization: Bearer $TOKEN"
 ```
 
-## Change Job Detail
+## Job Detail
 ```bash
 curl http://localhost:4000/api/projects/<projectId>/change-jobs/<jobId> \
   -H "Authorization: Bearer $TOKEN"
 ```
 
-## Simulate Worker Transition
+## Simulate Worker Transition (MVP)
+Stub workers run automatically, but you can force a transition via:
 ```bash
 curl -X POST http://localhost:4000/api/change-jobs/<jobId>/transition \
   -H "Authorization: Bearer $TOKEN" \

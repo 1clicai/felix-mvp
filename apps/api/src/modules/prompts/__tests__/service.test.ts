@@ -33,4 +33,15 @@ describe("createPromptWithJob", () => {
 
     await expect(createPromptWithJob(prisma, baseInput)).rejects.toThrow("PROJECT_NOT_FOUND_IN_TENANT");
   });
+
+  it("validates connector scope when provided", async () => {
+    const prisma = {
+      project: { findFirst: vi.fn().mockResolvedValue({ id: "project-1" }) },
+      connector: { findFirst: vi.fn().mockResolvedValue(null) },
+    } as unknown as Parameters<typeof createPromptWithJob>[0];
+
+    await expect(
+      createPromptWithJob(prisma, { ...baseInput, connectorId: "connector-1" }),
+    ).rejects.toThrow("CONNECTOR_NOT_FOUND_IN_PROJECT");
+  });
 });

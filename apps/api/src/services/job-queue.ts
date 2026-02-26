@@ -1,3 +1,5 @@
+import { jobExecutor } from "./job-executor";
+
 export interface ChangeJobPayload {
   id: string;
   tenantId: string;
@@ -12,7 +14,9 @@ export interface JobQueue {
 class InMemoryJobQueue implements JobQueue {
   async enqueueChangeJob(job: ChangeJobPayload) {
     // Stub implementation — replace with Redis/BullMQ worker later.
-    console.info("[job-queue] enqueued change job", job);
+    queueMicrotask(() => {
+      void jobExecutor.run(job);
+    });
   }
 }
 

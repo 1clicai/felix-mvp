@@ -218,25 +218,30 @@ model Connector {
   lastSyncedAt        DateTime?
   createdAt           DateTime          @default(now())
   updatedAt           DateTime          @updatedAt
+  ChangeJob           ChangeJob[]
 
   @@index([tenantId, projectId])
 }
 
 model PromptRequest {
-  id              String       @id @default(cuid())
-  tenant          Tenant       @relation(fields: [tenantId], references: [id])
-  tenantId        String
-  project         Project?     @relation(fields: [projectId], references: [id])
-  projectId       String?
-  author          User?        @relation(fields: [authorId], references: [id])
-  authorId        String?
-  promptText      String
-  status          PromptStatus @default(DRAFT)
-  riskLevel       RiskLevel    @default(MEDIUM)
-  estimatedTokens Int          @default(0)
-  metadata        Json?
-  createdAt       DateTime     @default(now())
-  updatedAt       DateTime     @updatedAt
+  id                String       @id @default(cuid())
+  tenant            Tenant       @relation(fields: [tenantId], references: [id])
+  tenantId          String
+  project           Project?     @relation(fields: [projectId], references: [id])
+  projectId         String?
+  author            User?        @relation(fields: [authorId], references: [id])
+  authorId          String?
+  promptText        String
+  category          String?
+  status            PromptStatus @default(DRAFT)
+  riskLevel         RiskLevel    @default(MEDIUM)
+  estimatedTokens   Int          @default(0)
+  executionProvider String?
+  resultSummary     Json?
+  lastError         String?
+  metadata          Json?
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
 
   plans DeploymentPlan[]
   jobs  ChangeJob[]
@@ -276,20 +281,29 @@ model Deployment {
 }
 
 model ChangeJob {
-  id          String          @id @default(cuid())
-  tenant      Tenant          @relation(fields: [tenantId], references: [id])
-  tenantId    String
-  project     Project?        @relation(fields: [projectId], references: [id])
-  projectId   String?
-  prompt      PromptRequest?  @relation(fields: [promptId], references: [id])
-  promptId    String?
-  plan        DeploymentPlan? @relation(fields: [planId], references: [id])
-  planId      String?
-  status      ChangeJobStatus @default(QUEUED)
-  resultUrl   String?
-  startedAt   DateTime?
-  completedAt DateTime?
-  createdAt   DateTime        @default(now())
+  id           String          @id @default(cuid())
+  tenant       Tenant          @relation(fields: [tenantId], references: [id])
+  tenantId     String
+  project      Project?        @relation(fields: [projectId], references: [id])
+  projectId    String?
+  prompt       PromptRequest?  @relation(fields: [promptId], references: [id])
+  promptId     String?
+  plan         DeploymentPlan? @relation(fields: [planId], references: [id])
+  planId       String?
+  connector    Connector?      @relation(fields: [connectorId], references: [id])
+  connectorId  String?
+  status       ChangeJobStatus @default(QUEUED)
+  provider     String?
+  resultUrl    String?
+  tokenCost    Int?
+  durationMs   Int?
+  errorMessage String?
+  statusReason String?
+  metadata     Json?
+  queuedAt     DateTime        @default(now())
+  startedAt    DateTime?
+  completedAt  DateTime?
+  createdAt    DateTime        @default(now())
 }
 
 model ModuleExecution {

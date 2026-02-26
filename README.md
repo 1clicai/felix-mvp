@@ -83,13 +83,15 @@ Suggested first tasks:
 - **Why**: Keeps MVP fast—no external IdP yet, but still enforces tenant membership and revocation via database lookups per request.
 - **Tradeoffs**: Tokens rely on shared secret and manual user provisioning. Future iterations can swap in Clerk/Auth0 without touching route guards (replace token issuer + verifier).
 
-See `docs/api/projects.md` and `docs/api/prompts-change-jobs.md` for curl-ready examples.
+See `docs/api/projects.md`, `docs/api/prompts.md`, `docs/api/change-jobs.md`, and `docs/api/connectors.md` for curl-ready examples.
 
 ### Prompt & Job Flow (MVP)
 - `POST /auth/token` → obtain tenant-scoped JWT
 - `POST /api/prompts` → persists prompt + enqueues `changeJob`
+- `GET /api/projects/:projectId/prompts` / `:promptId` → inspect requests + linked jobs
 - `GET /api/projects/:projectId/change-jobs` → monitor queue
-- `POST /api/change-jobs/:id/transition` → simulate worker status updates until real workers attach.
+- Stub worker (in-memory) auto-progresses jobs; `POST /api/change-jobs/:id/transition` lets you force transitions for testing.
+- ⚠️ LLM/code execution is **stubbed**; jobs enter `RUNNING → SUCCEEDED` automatically with fake metadata.
 
 ### GitHub Connector Flow (MVP)
 1. `POST /api/projects/:projectId/connectors` (body: provider `github`, auth `pat`, repo owner/name, token)
