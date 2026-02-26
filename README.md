@@ -23,6 +23,13 @@ Build an MVP that allows:
 - Agent persona: `Felix` (Technical Lead + Full-Stack Builder)
 - Development approach: phased delivery (`Spec -> Architecture -> Build -> Test -> Deploy`)
 
+## Architecture Snapshot (2026-02-26)
+
+- System overview and guardrails live in `docs/architecture/system-architecture.md`
+- Phase 4 hardening/test plan defined in `docs/architecture/phase4-test-plan.md`
+- Prisma domain modeling starts in `prisma/schema.prisma`
+- Monorepo layout driven by workspaces (`apps/*`, `packages/*`)
+
 ## Recommended MVP Direction
 
 Initial focus for v1:

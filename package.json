@@ -1,0 +1,24 @@
+{
+  "name": "felix-mvp",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Felix Prompted Personalized Software MVP",
+  "type": "module",
+  "scripts": {
+    "lint": "biome check .",
+    "format": "biome format .",
+    "typecheck": "tsc -p tsconfig.base.json --noEmit",
+    "dev:dashboard": "npm run dev --workspace @felix/dashboard",
+    "dev:founder": "npm run dev --workspace @felix/founder-console",
+    "dev:api": "npm run dev --workspace @felix/api"
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "devDependencies": {
+    "@biomejs/biome": "^1.8.0",
+    "tsx": "^4.7.0",
+    "typescript": "^5.4.0"
+  }
+}

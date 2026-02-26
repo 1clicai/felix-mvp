@@ -1,0 +1,45 @@
+// prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Tenant {
+  id        String   @id @default(cuid())
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  tokenAccounts TokenAccount[]
+}
+
+model TokenAccount {
+  id        String   @id @default(cuid())
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  tenantId  String
+  balance   Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  transactions TokenTransaction[]
+}
+
+model TokenTransaction {
+  id            String   @id @default(cuid())
+  account       TokenAccount @relation(fields: [accountId], references: [id])
+  accountId     String
+  action        String
+  module        String
+  tokens        Int
+  direction     TransactionDirection
+  metadata      Json
+  occurredAt    DateTime @default(now())
+}
+
+enum TransactionDirection {
+  CREDIT
+  DEBIT
+}
