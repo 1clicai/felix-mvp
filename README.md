@@ -49,6 +49,34 @@ Suggested first tasks:
 3. Propose architecture and project structure
 4. Scaffold the initial codebase
 
+## Backend Setup (Phase 3 foundation)
+
+1. **Install dependencies**
+   ```bash
+   npm install
+   ```
+2. **Configure environment**
+   ```bash
+   cp .env.example .env
+   # update secrets + connection strings as needed
+   ```
+3. **Start local stack** (API + Postgres + Redis)
+   ```bash
+   docker compose up -d postgres redis
+   npm run prisma:migrate -- --name init # first run only
+   npm run prisma:generate
+   npm run dev:api
+   ```
+   Or run everything in containers:
+   ```bash
+   docker compose up api
+   ```
+4. **Dashboards** (optional for now)
+   ```bash
+   npm run dev:dashboard
+   npm run dev:founder
+   ```
+
 ## Notes
 
 - Do not commit secrets (`.env`, API keys, credentials)

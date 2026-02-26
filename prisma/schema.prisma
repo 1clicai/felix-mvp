@@ -1,20 +1,139 @@
-// prisma/schema.prisma
-
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  CLIENT_ADMIN
+  CLIENT_OPERATOR
+  FOUNDER
+  SYSTEM
+}
+
+enum PromptStatus {
+  DRAFT
+  PLANNING
+  READY_FOR_REVIEW
+  APPROVED
+  REJECTED
+  EXECUTED
+}
+
+enum RiskLevel {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum DeploymentStatus {
+  PENDING
+  RUNNING
+  SUCCEEDED
+  FAILED
+  ROLLED_BACK
+}
+
+enum DeploymentEnvironment {
+  STAGING
+  PRODUCTION
+}
+
+enum ConnectorType {
+  SHOPIFY
+  WOOCOMMERCE
+  AMAZON
+  STRIPE
+  WHATSAPP
+  GITHUB
+  CUSTOM
+}
+
+enum ConnectorStatus {
+  DISCONNECTED
+  CONNECTING
+  ACTIVE
+  ERROR
+}
+
+enum ModuleExecutionStatus {
+  QUEUED
+  RUNNING
+  SUCCEEDED
+  FAILED
+  CANCELED
+}
+
+enum TokenTransactionDirection {
+  CREDIT
+  DEBIT
+}
+
+enum OrderSource {
+  SHOPIFY
+  WOOCOMMERCE
+  AMAZON
+  MANUAL
+  WHATSAPP
+  CUSTOM
+}
+
+enum OrderStatus {
+  NEW
+  CONFIRMED
+  PROCESSING
+  SHIPPED
+  DELIVERED
+  COMPLETED
+  CANCELED
+  RETURNED
+}
+
+enum ChangeJobStatus {
+  QUEUED
+  RUNNING
+  SUCCEEDED
+  FAILED
+  CANCELED
 }
 
 model Tenant {
   id        String   @id @default(cuid())
   name      String
+  slug      String
+  planTier  String   @default("starter")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  users         User[]
   tokenAccounts TokenAccount[]
+  projects      Project[]
+  connectors    Connector[]
+  prompts       PromptRequest[]
+  moduleRuns    ModuleExecution[]
+  customers     Customer[]
+  orders        Order[]
+  changeJobs    ChangeJob[]
+
+  @@unique([slug])
+}
+
+model User {
+  id        String   @id @default(cuid())
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  tenantId  String
+  email     String
+  name      String?
+  avatarUrl String?
+  role      UserRole @default(CLIENT_OPERATOR)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  prompts PromptRequest[]
+
+  @@unique([tenantId, email])
 }
 
 model TokenAccount {
@@ -22,24 +141,178 @@ model TokenAccount {
   tenant    Tenant   @relation(fields: [tenantId], references: [id])
   tenantId  String
   balance   Int      @default(0)
+  currency  String   @default("USD")
+  planTier  String   @default("starter")
+  threshold Int      @default(2000)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
   transactions TokenTransaction[]
+
+  @@unique([tenantId, planTier])
 }
 
 model TokenTransaction {
-  id            String   @id @default(cuid())
-  account       TokenAccount @relation(fields: [accountId], references: [id])
-  accountId     String
-  action        String
-  module        String
-  tokens        Int
-  direction     TransactionDirection
-  metadata      Json
-  occurredAt    DateTime @default(now())
+  id          String                    @id @default(cuid())
+  account     TokenAccount              @relation(fields: [accountId], references: [id])
+  accountId   String
+  direction   TokenTransactionDirection
+  module      String
+  action      String
+  tokens      Int
+  referenceId String?
+  metadata    Json
+  occurredAt  DateTime                  @default(now())
 }
 
-enum TransactionDirection {
-  CREDIT
-  DEBIT
+model Project {
+  id             String   @id @default(cuid())
+  tenant         Tenant   @relation(fields: [tenantId], references: [id])
+  tenantId       String
+  name           String
+  slug           String
+  repositoryUrl  String?
+  defaultBranch  String?  @default("main")
+  environmentCfg Json?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  connectors Connector[]
+  prompts    PromptRequest[]
+  changeJobs ChangeJob[]
+
+  @@unique([tenantId, slug])
+}
+
+model Connector {
+  id           String          @id @default(cuid())
+  tenant       Tenant          @relation(fields: [tenantId], references: [id])
+  tenantId     String
+  project      Project?        @relation(fields: [projectId], references: [id])
+  projectId    String?
+  type         ConnectorType
+  status       ConnectorStatus @default(DISCONNECTED)
+  config       Json
+  lastSyncedAt DateTime?
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+}
+
+model PromptRequest {
+  id              String       @id @default(cuid())
+  tenant          Tenant       @relation(fields: [tenantId], references: [id])
+  tenantId        String
+  project         Project?     @relation(fields: [projectId], references: [id])
+  projectId       String?
+  author          User?        @relation(fields: [authorId], references: [id])
+  authorId        String?
+  promptText      String
+  status          PromptStatus @default(DRAFT)
+  riskLevel       RiskLevel    @default(MEDIUM)
+  estimatedTokens Int          @default(0)
+  metadata        Json?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  plans DeploymentPlan[]
+  jobs  ChangeJob[]
+}
+
+model DeploymentPlan {
+  id              String        @id @default(cuid())
+  prompt          PromptRequest @relation(fields: [promptId], references: [id])
+  promptId        String
+  summary         String
+  riskLevel       RiskLevel     @default(MEDIUM)
+  estimatedTokens Int           @default(0)
+  steps           Json
+  status          PromptStatus  @default(PLANNING)
+  approvedAt      DateTime?
+  createdAt       DateTime      @default(now())
+
+  deployments Deployment[]
+  changeJobs  ChangeJob[]
+}
+
+model Deployment {
+  id          String                @id @default(cuid())
+  plan        DeploymentPlan        @relation(fields: [planId], references: [id])
+  planId      String
+  environment DeploymentEnvironment @default(STAGING)
+  status      DeploymentStatus      @default(PENDING)
+  tokenCost   Int?
+  diffUrl     String?
+  previewUrl  String?
+  logsUrl     String?
+  createdAt   DateTime              @default(now())
+  deployedAt  DateTime?
+  rollback    Deployment?           @relation("DeploymentRollback", fields: [rollbackId], references: [id])
+  rollbackId  String?
+  rollbackOf  Deployment[]          @relation("DeploymentRollback")
+}
+
+model ChangeJob {
+  id          String          @id @default(cuid())
+  tenant      Tenant          @relation(fields: [tenantId], references: [id])
+  tenantId    String
+  project     Project?        @relation(fields: [projectId], references: [id])
+  projectId   String?
+  prompt      PromptRequest?  @relation(fields: [promptId], references: [id])
+  promptId    String?
+  plan        DeploymentPlan? @relation(fields: [planId], references: [id])
+  planId      String?
+  status      ChangeJobStatus @default(QUEUED)
+  resultUrl   String?
+  startedAt   DateTime?
+  completedAt DateTime?
+  createdAt   DateTime        @default(now())
+}
+
+model ModuleExecution {
+  id          String                @id @default(cuid())
+  tenant      Tenant                @relation(fields: [tenantId], references: [id])
+  tenantId    String
+  module      String
+  action      String
+  input       Json?
+  result      Json?
+  status      ModuleExecutionStatus @default(QUEUED)
+  tokenCost   Int?
+  triggeredBy String?
+  createdAt   DateTime              @default(now())
+  completedAt DateTime?
+}
+
+model Customer {
+  id            String   @id @default(cuid())
+  tenant        Tenant   @relation(fields: [tenantId], references: [id])
+  tenantId      String
+  email         String?
+  phone         String?
+  name          String?
+  location      String?
+  lifetimeValue Decimal? @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  orders Order[]
+}
+
+model Order {
+  id          String      @id @default(cuid())
+  tenant      Tenant      @relation(fields: [tenantId], references: [id])
+  tenantId    String
+  customer    Customer?   @relation(fields: [customerId], references: [id])
+  customerId  String?
+  externalId  String?
+  source      OrderSource @default(MANUAL)
+  status      OrderStatus @default(NEW)
+  totalAmount Decimal?    @default(0)
+  currency    String      @default("USD")
+  placedAt    DateTime?
+  rawPayload  Json?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  @@index([tenantId, status])
 }
