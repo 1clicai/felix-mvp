@@ -4,6 +4,7 @@ import { projectsModule } from "./projects";
 import { connectorsModule } from "./connectors";
 import { promptsModule } from "./prompts";
 import { changeJobsModule } from "./change-jobs";
+import { ingestionModule } from "./ingestion";
 
 export async function registerModules(app: FastifyInstance) {
   await app.register(authModule);
@@ -11,4 +12,5 @@ export async function registerModules(app: FastifyInstance) {
   await app.register(connectorsModule);
   await app.register(promptsModule);
   await app.register(changeJobsModule);
+  await app.register(ingestionModule);
 }

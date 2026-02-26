@@ -132,3 +132,8 @@ See `docs/api/projects.md`, `docs/api/prompts.md`, `docs/api/change-jobs.md`, an
 - Keep changes small and reviewable
 - Prefer vertical slices over large rewrites
 
+
+### Repository Ingestion (MVP)
+- Trigger via POST /api/projects/:projectId/connectors/:id/ingestion-runs (see docs/api/ingestion.md).
+- BullMQ worker shares the same process (npm run dev:worker) and fetches repo metadata + file tree snapshots.
+- Indexed context is stored in ProjectContextDocument for future prompt usage.

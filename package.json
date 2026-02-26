@@ -15,7 +15,7 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "db:push": "prisma db push",
-    "test": "CONNECTOR_SECRET_ENCRYPTION_KEY=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA= SESSION_SECRET=test-session DATABASE_URL=postgresql://test vitest run"
+    "test": "CONNECTOR_SECRET_ENCRYPTION_KEY=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA= SESSION_SECRET=test-session-secret DATABASE_URL=postgresql://test vitest run"
   },
   "workspaces": [
     "apps/*",

@@ -1,6 +1,8 @@
 import { Worker } from "bullmq";
 import { redisConnection } from "../config/redis";
 import { CHANGE_JOB_QUEUE, ChangeJobPayload } from "../services/job-queue";
+import { CONNECTOR_INGESTION_QUEUE } from "../services/ingestion-queue";
+import { GitHubIngestionService } from "../modules/ingestion/github-ingestion-service";
 import { prisma } from "../lib/prisma";
 import { PromptExecutionService } from "../services/prompt-execution/execution-service";
 import { OpenAIPromptExecutionProvider } from "../services/prompt-execution/openai-provider";
@@ -13,7 +15,7 @@ try {
   console.warn("[worker] Prompt execution disabled:", (error as Error).message);
 }
 
-const worker = new Worker<ChangeJobPayload>(
+const changeJobWorker = new Worker<ChangeJobPayload>(
   CHANGE_JOB_QUEUE,
   async (job) => {
     const start = Date.now();
@@ -67,18 +69,60 @@ const worker = new Worker<ChangeJobPayload>(
   },
 );
 
-worker.on("completed", (job) => {
+changeJobWorker.on("completed", (job) => {
   console.info(`[worker] job ${job.id} completed`);
 });
 
-worker.on("failed", (job, err) => {
+changeJobWorker.on("failed", (job, err) => {
   console.error(`[worker] job ${job?.id} failed`, err.message);
 });
 
 const shutdown = async () => {
-  await worker.close();
+  await changeJobWorker.close();
+  await ingestionWorker.close();
   process.exit(0);
 };
 
 process.on("SIGINT", shutdown);
 process.on("SIGTERM", shutdown);
+
+const ingestionService = new GitHubIngestionService();
+
+const ingestionWorker = new Worker(
+  CONNECTOR_INGESTION_QUEUE,
+  async (job) => {
+    await prisma.connectorIngestionRun.update({
+      where: { id: job.data.runId },
+      data: { status: "RUNNING", startedAt: new Date() },
+    });
+
+    try {
+      const result = await ingestionService.ingest(job.data.runId);
+      await prisma.connectorIngestionRun.update({
+        where: { id: job.data.runId },
+        data: {
+          status: "SUCCEEDED",
+          completedAt: new Date(),
+          filesCount: result.filesCount,
+          metadata: result.repoMeta,
+        },
+      });
+    } catch (error) {
+      await prisma.connectorIngestionRun.update({
+        where: { id: job.data.runId },
+        data: {
+          status: "FAILED",
+          completedAt: new Date(),
+          error: (error as Error).message,
+        },
+      });
+      throw error;
+    }
+  },
+  { connection: redisConnection }
+);
+
+ingestionWorker.on("failed", (job, err) => {
+  console.error(`[ingestion-worker] job ${job?.id} failed`, err.message);
+});
+

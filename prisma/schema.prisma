@@ -118,15 +118,17 @@ model Tenant {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  users         User[]
-  tokenAccounts TokenAccount[]
-  projects      Project[]
-  connectors    Connector[]
-  prompts       PromptRequest[]
-  moduleRuns    ModuleExecution[]
-  customers     Customer[]
-  orders        Order[]
-  changeJobs    ChangeJob[]
+  users                  User[]
+  tokenAccounts          TokenAccount[]
+  projects               Project[]
+  connectors             Connector[]
+  prompts                PromptRequest[]
+  moduleRuns             ModuleExecution[]
+  customers              Customer[]
+  orders                 Order[]
+  changeJobs             ChangeJob[]
+  ConnectorIngestionRun  ConnectorIngestionRun[]
+  ProjectContextDocument ProjectContextDocument[]
 
   @@unique([slug])
 }
@@ -188,43 +190,94 @@ model Project {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  connectors Connector[]
-  prompts    PromptRequest[]
-  changeJobs ChangeJob[]
+  connectors             Connector[]
+  prompts                PromptRequest[]
+  changeJobs             ChangeJob[]
+  ConnectorIngestionRun  ConnectorIngestionRun[]
+  ProjectContextDocument ProjectContextDocument[]
 
   @@unique([tenantId, slug])
 }
 
 model Connector {
-  id                  String            @id @default(cuid())
-  tenant              Tenant            @relation(fields: [tenantId], references: [id])
-  tenantId            String
-  project             Project?          @relation(fields: [projectId], references: [id])
-  projectId           String?
-  type                ConnectorType
-  provider            ConnectorProvider @default(GITHUB)
-  status              ConnectorStatus   @default(PENDING)
-  authType            ConnectorAuthType @default(PAT)
-  repoOwner           String?
-  repoName            String?
-  repoUrl             String?
-  defaultBranch       String?
-  installationId      String?
-  appId               String?
-  credentialToken     String?
+  id                   String                   @id @default(cuid())
+  tenant               Tenant                   @relation(fields: [tenantId], references: [id])
+  tenantId             String
+  project              Project?                 @relation(fields: [projectId], references: [id])
+  projectId            String?
+  type                 ConnectorType
+  provider             ConnectorProvider        @default(GITHUB)
+  status               ConnectorStatus          @default(PENDING)
+  authType             ConnectorAuthType        @default(PAT)
+  repoOwner            String?
+  repoName             String?
+  repoUrl              String?
+  defaultBranch        String?
+  installationId       String?
+  appId                String?
+  credentialToken      String?
   credentialCiphertext String?
-  credentialIv        String?
-  credentialTag       String?
-  credentialKeyVersion String? @default("v1")
-  lastValidatedAt     DateTime?
-  lastValidationError String?
-  config              Json?
-  lastSyncedAt        DateTime?
-  createdAt           DateTime          @default(now())
-  updatedAt           DateTime          @updatedAt
-  ChangeJob           ChangeJob[]
+  credentialIv         String?
+  credentialTag        String?
+  credentialKeyVersion String?                  @default("v1")
+  lastValidatedAt      DateTime?
+  lastValidationError  String?
+  config               Json?
+  lastSyncedAt         DateTime?
+  createdAt            DateTime                 @default(now())
+  updatedAt            DateTime                 @updatedAt
+  ChangeJob            ChangeJob[]
+  ingestionRuns        ConnectorIngestionRun[]
+  contextDocuments     ProjectContextDocument[]
 
   @@index([tenantId, projectId])
+}
+
+enum IngestionStatus {
+  QUEUED
+  RUNNING
+  SUCCEEDED
+  FAILED
+}
+
+model ConnectorIngestionRun {
+  id          String          @id @default(cuid())
+  tenant      Tenant          @relation(fields: [tenantId], references: [id])
+  tenantId    String
+  project     Project         @relation(fields: [projectId], references: [id])
+  projectId   String
+  connector   Connector       @relation(fields: [connectorId], references: [id])
+  connectorId String
+  status      IngestionStatus @default(QUEUED)
+  startedAt   DateTime?
+  completedAt DateTime?
+  error       String?
+  filesCount  Int             @default(0)
+  metadata    Json?
+  createdAt   DateTime        @default(now())
+
+  @@index([tenantId, projectId])
+  @@index([connectorId])
+}
+
+model ProjectContextDocument {
+  id             String    @id @default(cuid())
+  tenant         Tenant    @relation(fields: [tenantId], references: [id])
+  tenantId       String
+  project        Project   @relation(fields: [projectId], references: [id])
+  projectId      String
+  connector      Connector @relation(fields: [connectorId], references: [id])
+  connectorId    String
+  type           String
+  sourcePath     String
+  checksum       String?
+  sizeBytes      Int?
+  contentPreview String?
+  metadata       Json?
+  createdAt      DateTime  @default(now())
+
+  @@index([tenantId, projectId, type])
+  @@index([connectorId])
 }
 
 model PromptRequest {
@@ -285,29 +338,29 @@ model Deployment {
 }
 
 model ChangeJob {
-  id            String          @id @default(cuid())
-  tenant        Tenant          @relation(fields: [tenantId], references: [id])
-  tenantId      String
-  project       Project?        @relation(fields: [projectId], references: [id])
-  projectId     String?
-  prompt        PromptRequest?  @relation(fields: [promptId], references: [id])
-  promptId      String?
-  plan          DeploymentPlan? @relation(fields: [planId], references: [id])
-  planId        String?
-  connector     Connector?      @relation(fields: [connectorId], references: [id])
-  connectorId   String?
-  status        ChangeJobStatus @default(QUEUED)
-  provider      String?
-  resultUrl     String?
-  tokenCost     Int?
-  durationMs    Int?
-  errorMessage  String?
-  statusReason  String?
-  metadata      Json?
-  queuedAt      DateTime        @default(now())
-  startedAt     DateTime?
-  completedAt   DateTime?
-  createdAt     DateTime        @default(now())
+  id           String          @id @default(cuid())
+  tenant       Tenant          @relation(fields: [tenantId], references: [id])
+  tenantId     String
+  project      Project?        @relation(fields: [projectId], references: [id])
+  projectId    String?
+  prompt       PromptRequest?  @relation(fields: [promptId], references: [id])
+  promptId     String?
+  plan         DeploymentPlan? @relation(fields: [planId], references: [id])
+  planId       String?
+  connector    Connector?      @relation(fields: [connectorId], references: [id])
+  connectorId  String?
+  status       ChangeJobStatus @default(QUEUED)
+  provider     String?
+  resultUrl    String?
+  tokenCost    Int?
+  durationMs   Int?
+  errorMessage String?
+  statusReason String?
+  metadata     Json?
+  queuedAt     DateTime        @default(now())
+  startedAt    DateTime?
+  completedAt  DateTime?
+  createdAt    DateTime        @default(now())
 }
 
 model ModuleExecution {
