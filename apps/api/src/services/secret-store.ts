@@ -1,23 +1,56 @@
 import { prisma } from "../lib/prisma";
+import { decryptSecret, encryptSecret } from "./secrets/encryption";
 
-/**
- * TEMPORARY: stores PAT values in plain text until KMS/encryption is wired.
- * Never return tokens from APIs and prefer to rotate frequently.
- */
 export class ConnectorSecretStore {
+  constructor(private db = prisma) {}
+
   async saveToken(connectorId: string, token: string) {
-    await prisma.connector.update({
+    const encrypted = encryptSecret(token);
+    await this.db.connector.update({
       where: { id: connectorId },
-      data: { credentialToken: token },
+      data: {
+        credentialCiphertext: encrypted.ciphertext,
+        credentialIv: encrypted.iv,
+        credentialTag: encrypted.tag,
+        credentialKeyVersion: encrypted.keyVersion,
+        credentialToken: null,
+      },
     });
   }
 
   async getToken(connectorId: string) {
-    const record = await prisma.connector.findUnique({
+    const record = await this.db.connector.findUnique({
       where: { id: connectorId },
-      select: { credentialToken: true },
+      select: {
+        credentialCiphertext: true,
+        credentialIv: true,
+        credentialTag: true,
+        credentialKeyVersion: true,
+        credentialToken: true,
+      },
     });
-    return record?.credentialToken ?? null;
+
+    if (!record) return null;
+
+    if (record.credentialCiphertext && record.credentialIv && record.credentialTag) {
+      try {
+        return decryptSecret({
+          ciphertext: record.credentialCiphertext,
+          iv: record.credentialIv,
+          tag: record.credentialTag,
+          keyVersion: record.credentialKeyVersion ?? "v1",
+        });
+      } catch (error) {
+        throw new Error("SECRET_DECRYPTION_FAILED");
+      }
+    }
+
+    if (record.credentialToken) {
+      await this.saveToken(connectorId, record.credentialToken);
+      return record.credentialToken;
+    }
+
+    return null;
   }
 }
 

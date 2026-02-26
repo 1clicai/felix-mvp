@@ -1,5 +1,5 @@
 import { Queue } from "bullmq";
-import { redisConnection } from "../config/redis";
+import { redisConnection, queueNamespace } from "../config/redis";
 
 export interface ChangeJobPayload {
   id: string;

@@ -92,24 +92,39 @@ See `docs/api/projects.md`, `docs/api/prompts.md`, `docs/api/change-jobs.md`, an
 - `GET /api/projects/:projectId/prompts` / `:promptId` → inspect requests + linked jobs
 - `GET /api/projects/:projectId/change-jobs` → monitor queue
 - BullMQ worker (Redis-backed) processes queued jobs asynchronously; run `npm run dev:worker` alongside the API.
+- Worker now calls the configured LLM provider (OpenAI by default) to generate structured plans. Jobs store provider metadata + summaries.
+- If `OPENAI_API_KEY` is missing, jobs fail with `EXECUTION_PROVIDER_UNAVAILABLE` (documented fallback below).
 - `POST /api/change-jobs/:id/transition` still available for manual overrides during testing.
-- ⚠️ LLM/code execution is **stubbed**; the worker marks jobs `RUNNING → SUCCEEDED` automatically after a short delay.
+- ⚠️ LLM output is **read-only planning**. No repositories/code are modified yet.
 
 ### GitHub Connector Flow (MVP)
 1. `POST /api/projects/:projectId/connectors` (body: provider `github`, auth `pat`, repo owner/name, token)
 2. `POST /api/projects/:projectId/connectors/:id/validate` → checks PAT + repo access, updates status
 3. `GET /api/projects/:projectId/connectors` → inspect status / last validation info
 
-> ⚠️ Secrets are temporarily stored in plaintext DB columns behind `ConnectorSecretStore`. Rotate PATs frequently and plan to replace with KMS/encrypted storage + GitHub App installations.
+> ⚠️ Connector PATs are encrypted at rest using AES-256-GCM with a key sourced from `CONNECTOR_SECRET_ENCRYPTION_KEY`. Store the key securely (KMS/Vault recommended for prod). Legacy plaintext values are auto-re-encrypted on first read.
 
 ### Frontend (Dashboard) Workflow
-1. `npm run dev:api` (backend) and `npm run dev:dashboard` (frontend) with `.env` containing `NEXT_PUBLIC_API_BASE_URL`.
+1. `npm run dev:api` (backend), `npm run dev:worker` (LLM worker), and `npm run dev:dashboard` (frontend) with `.env` containing `NEXT_PUBLIC_API_BASE_URL`.
 2. Visit `http://localhost:3000`, paste a bearer token (from `POST /auth/token`).
 3. Pick a project → tabs for **Connectors**, **Prompts**, **Jobs**.
    - Register & validate GitHub connector directly in UI.
    - Submit prompts (optional connector linkage) and watch jobs appear.
-   - Job list auto-polls; statuses update as the stub worker runs.
+   - Job list auto-polls; statuses update as the worker runs.
 4. Manual test checklist lives in `docs/api/*.md` curl samples.
+
+### LLM Execution Setup
+- Required vars: `OPENAI_API_KEY` and optional `OPENAI_MODEL` (defaults to `gpt-4.1-mini`).
+- Worker generates structured plans only (intent, proposed changes, risks, next steps). No code changes are made yet.
+- If no API key is configured, the worker leaves jobs in `FAILED` with `EXECUTION_PROVIDER_UNAVAILABLE`. Frontend + APIs continue to work, but results will be empty.
+- Future providers can plug into `PromptExecutionProvider`; OpenAI is the first adapter.
+
+### Connector Secret Encryption
+- Set `CONNECTOR_SECRET_ENCRYPTION_KEY` to a base64-encoded 32-byte key (e.g. `openssl rand -base64 32`).
+- The API fails fast at startup if the key is missing or invalid.
+- PATs are encrypted before persistence; ciphertext, IV, tag, and key version are stored alongside metadata.
+- Legacy plaintext secrets are re-encrypted automatically the next time they are accessed.
+- Production recommendation: store the encryption key in a managed KMS/HSM/Vault and rotate via `credentialKeyVersion`.
 
 ## Notes
 

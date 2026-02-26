@@ -12,6 +12,8 @@ const envSchema = z.object({
   GITHUB_APP_ID: z.string().optional(),
   GITHUB_PRIVATE_KEY: z.string().optional(),
   OPENAI_API_KEY: z.string().optional(),
+  OPENAI_MODEL: z.string().optional().default("gpt-4.1-mini"),
+  CONNECTOR_SECRET_ENCRYPTION_KEY: z.string().min(44),
 });
 
 export const env = envSchema.parse(process.env);

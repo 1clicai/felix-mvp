@@ -15,6 +15,7 @@ curl -X POST http://localhost:4000/api/projects/<projectId>/connectors \
     "token": "ghp_exampletoken1234567890"
   }'
 ```
+> PATs are encrypted at rest; connector APIs never return the token.
 
 ## List Connectors for a Project
 ```bash

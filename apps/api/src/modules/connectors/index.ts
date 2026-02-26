@@ -109,13 +109,17 @@ export async function connectorsModule(app: FastifyInstance) {
     } catch (error) {
       await githubService.markConnectorInvalid(connector.id, (error as Error).message);
 
-      if ((error as Error).message === "MISSING_TOKEN") {
+      const message = (error as Error).message;
+      if (message === "MISSING_TOKEN") {
         throw app.httpErrors.badRequest("Connector has no stored credentials");
       }
-      if ((error as Error).message === "GITHUB_UNAUTHORIZED") {
+      if (message === "SECRET_DECRYPTION_FAILED") {
+        throw app.httpErrors.badRequest("Connector secret is corrupted; rotate PAT");
+      }
+      if (message === "GITHUB_UNAUTHORIZED") {
         throw app.httpErrors.unauthorized("Token is invalid or lacks repo access");
       }
-      if ((error as Error).message === "GITHUB_REPO_NOT_FOUND") {
+      if (message === "GITHUB_REPO_NOT_FOUND") {
         throw app.httpErrors.notFound("Repository not found or inaccessible");
       }
       request.log.error({ err: error }, "Connector validation failed");
