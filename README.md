@@ -114,6 +114,8 @@ See `docs/api/projects.md`, `docs/api/prompts.md`, `docs/api/change-jobs.md`, an
 4. Manual test checklist lives in `docs/api/*.md` curl samples.
 
 ### LLM Execution Setup
+- Worker now pulls latest successful GitHub ingestion context (repo metadata + file tree summaries) when available.
+- Context is bounded (max docs, truncated summaries) and recorded in job metadata.
 - Required vars: `OPENAI_API_KEY` and optional `OPENAI_MODEL` (defaults to `gpt-4.1-mini`).
 - Worker generates structured plans only (intent, proposed changes, risks, next steps). No code changes are made yet.
 - If no API key is configured, the worker leaves jobs in `FAILED` with `EXECUTION_PROVIDER_UNAVAILABLE`. Frontend + APIs continue to work, but results will be empty.

@@ -82,6 +82,13 @@ export class OpenAIPromptExecutionProvider implements PromptExecutionProvider {
       metadata: {
         raw: parsed,
         prompt: context.prompt.promptText,
+        ingestion: context.ingestion
+          ? {
+              runId: context.ingestion.runId,
+              documents: context.ingestion.documents.length,
+              stats: context.ingestion.stats,
+            }
+          : undefined,
       },
       tokensUsed: response.usage?.total_tokens,
     };
@@ -96,11 +103,24 @@ export class OpenAIPromptExecutionProvider implements PromptExecutionProvider {
       context.connector
         ? `Connector: ${context.connector.repoOwner}/${context.connector.repoName} (${context.connector.defaultBranch ?? "branch unknown"})`
         : "",
+    ];
+
+    if (context.ingestion) {
+      lines.push(`Using ingestion run ${context.ingestion.runId} (docs included: ${context.ingestion.documents.length}).`);
+      if (context.ingestion.repo) {
+        lines.push(`Repo meta: ${JSON.stringify(context.ingestion.repo)}`);
+      }
+      context.ingestion.documents.forEach((doc) => {
+        lines.push(`Doc [${doc.type}] ${doc.sourcePath}: ${doc.summary}`);
+      });
+    }
+
+    lines.push(
       "Deliver a JSON response describing the intent, proposed changes split by areas (frontend, backend, data, ops, etc.), key risks, and next steps.",
       "Do NOT include code. This is a planning-only step.",
-    ].filter(Boolean);
+    );
 
-    return lines.join("\n");
+    return lines.filter(Boolean).join("\n");
   }
 
   private defaultSummary(context: PromptExecutionContext, reason: string) {

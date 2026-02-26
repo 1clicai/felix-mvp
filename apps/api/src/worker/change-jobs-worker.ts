@@ -2,10 +2,10 @@ import { Worker } from "bullmq";
 import { redisConnection } from "../config/redis";
 import { CHANGE_JOB_QUEUE, ChangeJobPayload } from "../services/job-queue";
 import { CONNECTOR_INGESTION_QUEUE } from "../services/ingestion-queue";
-import { GitHubIngestionService } from "../modules/ingestion/github-ingestion-service";
 import { prisma } from "../lib/prisma";
 import { PromptExecutionService } from "../services/prompt-execution/execution-service";
 import { OpenAIPromptExecutionProvider } from "../services/prompt-execution/openai-provider";
+import { GitHubIngestionService } from "../modules/ingestion/github-ingestion-service";
 
 let executionService: PromptExecutionService | null = null;
 try {
@@ -14,6 +14,8 @@ try {
 } catch (error) {
   console.warn("[worker] Prompt execution disabled:", (error as Error).message);
 }
+
+const ingestionService = new GitHubIngestionService();
 
 const changeJobWorker = new Worker<ChangeJobPayload>(
   CHANGE_JOB_QUEUE,
@@ -29,7 +31,7 @@ const changeJobWorker = new Worker<ChangeJobPayload>(
         throw new Error("EXECUTION_PROVIDER_UNAVAILABLE");
       }
 
-      const result = await executionService.execute(job.data);
+      const { result, ingestion } = await executionService.execute(job.data);
 
       await prisma.changeJob.update({
         where: { id: job.data.id },
@@ -40,7 +42,16 @@ const changeJobWorker = new Worker<ChangeJobPayload>(
           statusReason: "llm-executed",
           provider: result.provider,
           tokenCost: result.tokensUsed ?? null,
-          metadata: result.metadata,
+          metadata: {
+            ...result.metadata,
+            ingestion: ingestion
+              ? {
+                  runId: ingestion.runId,
+                  documents: ingestion.documents.length,
+                  stats: ingestion.stats,
+                }
+              : undefined,
+          },
         },
       });
     } catch (error) {
@@ -77,17 +88,6 @@ changeJobWorker.on("failed", (job, err) => {
   console.error(`[worker] job ${job?.id} failed`, err.message);
 });
 
-const shutdown = async () => {
-  await changeJobWorker.close();
-  await ingestionWorker.close();
-  process.exit(0);
-};
-
-process.on("SIGINT", shutdown);
-process.on("SIGTERM", shutdown);
-
-const ingestionService = new GitHubIngestionService();
-
 const ingestionWorker = new Worker(
   CONNECTOR_INGESTION_QUEUE,
   async (job) => {
@@ -119,10 +119,18 @@ const ingestionWorker = new Worker(
       throw error;
     }
   },
-  { connection: redisConnection }
+  { connection: redisConnection },
 );
 
 ingestionWorker.on("failed", (job, err) => {
   console.error(`[ingestion-worker] job ${job?.id} failed`, err.message);
 });
 
+const shutdown = async () => {
+  await changeJobWorker.close();
+  await ingestionWorker.close();
+  process.exit(0);
+};
+
+process.on("SIGINT", shutdown);
+process.on("SIGTERM", shutdown);
