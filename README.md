@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 # Felix MVP (PPS)
+=======
+Felix MVP (PPS)
+>>>>>>> 2957399c11bcbe008d5f812e151488debd622128
 
 This repository is the starting point for building a **Prompting Personalized Software (PPS)** platform.
 
