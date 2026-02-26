@@ -91,6 +91,13 @@ See `docs/api/projects.md` and `docs/api/prompts-change-jobs.md` for curl-ready 
 - `GET /api/projects/:projectId/change-jobs` → monitor queue
 - `POST /api/change-jobs/:id/transition` → simulate worker status updates until real workers attach.
 
+### GitHub Connector Flow (MVP)
+1. `POST /api/projects/:projectId/connectors` (body: provider `github`, auth `pat`, repo owner/name, token)
+2. `POST /api/projects/:projectId/connectors/:id/validate` → checks PAT + repo access, updates status
+3. `GET /api/projects/:projectId/connectors` → inspect status / last validation info
+
+> ⚠️ Secrets are temporarily stored in plaintext DB columns behind `ConnectorSecretStore`. Rotate PATs frequently and plan to replace with KMS/encrypted storage + GitHub App installations.
+
 ## Notes
 
 - Do not commit secrets (`.env`, API keys, credentials)

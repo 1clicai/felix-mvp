@@ -4,6 +4,7 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 enum UserRole {
@@ -51,11 +52,21 @@ enum ConnectorType {
   CUSTOM
 }
 
+enum ConnectorProvider {
+  GITHUB
+  CUSTOM
+}
+
 enum ConnectorStatus {
-  DISCONNECTED
-  CONNECTING
+  PENDING
   ACTIVE
-  ERROR
+  INVALID
+  REVOKED
+}
+
+enum ConnectorAuthType {
+  PAT
+  GITHUB_APP
 }
 
 enum ModuleExecutionStatus {
@@ -185,17 +196,30 @@ model Project {
 }
 
 model Connector {
-  id           String          @id @default(cuid())
-  tenant       Tenant          @relation(fields: [tenantId], references: [id])
-  tenantId     String
-  project      Project?        @relation(fields: [projectId], references: [id])
-  projectId    String?
-  type         ConnectorType
-  status       ConnectorStatus @default(DISCONNECTED)
-  config       Json
-  lastSyncedAt DateTime?
-  createdAt    DateTime        @default(now())
-  updatedAt    DateTime        @updatedAt
+  id                  String            @id @default(cuid())
+  tenant              Tenant            @relation(fields: [tenantId], references: [id])
+  tenantId            String
+  project             Project?          @relation(fields: [projectId], references: [id])
+  projectId           String?
+  type                ConnectorType
+  provider            ConnectorProvider @default(GITHUB)
+  status              ConnectorStatus   @default(PENDING)
+  authType            ConnectorAuthType @default(PAT)
+  repoOwner           String?
+  repoName            String?
+  repoUrl             String?
+  defaultBranch       String?
+  installationId      String?
+  appId               String?
+  credentialToken     String?
+  lastValidatedAt     DateTime?
+  lastValidationError String?
+  config              Json?
+  lastSyncedAt        DateTime?
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+
+  @@index([tenantId, projectId])
 }
 
 model PromptRequest {
