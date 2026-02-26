@@ -83,7 +83,13 @@ Suggested first tasks:
 - **Why**: Keeps MVP fast—no external IdP yet, but still enforces tenant membership and revocation via database lookups per request.
 - **Tradeoffs**: Tokens rely on shared secret and manual user provisioning. Future iterations can swap in Clerk/Auth0 without touching route guards (replace token issuer + verifier).
 
-See `docs/api/projects.md` for curl-ready examples.
+See `docs/api/projects.md` and `docs/api/prompts-change-jobs.md` for curl-ready examples.
+
+### Prompt & Job Flow (MVP)
+- `POST /auth/token` → obtain tenant-scoped JWT
+- `POST /api/prompts` → persists prompt + enqueues `changeJob`
+- `GET /api/projects/:projectId/change-jobs` → monitor queue
+- `POST /api/change-jobs/:id/transition` → simulate worker status updates until real workers attach.
 
 ## Notes
 
