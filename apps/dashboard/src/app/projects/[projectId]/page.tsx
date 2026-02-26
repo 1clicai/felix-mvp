@@ -24,12 +24,22 @@ interface ConnectorsResponse {
   data: Connector[];
 }
 
+interface PromptSummary {
+  overview: string;
+  intent: string;
+  proposedChanges: Array<{ area: string; description: string }>;
+  risks: string[];
+  nextSteps: string[];
+}
+
 interface Prompt {
   id: string;
   promptText: string;
   status: string;
   category?: string;
   createdAt: string;
+  resultSummary?: PromptSummary;
+  executionProvider?: string;
   jobs: Array<{ id: string; status: string }>;
 }
 
@@ -37,8 +47,21 @@ interface PromptsResponse {
   data: Prompt[];
 }
 
+interface JobRecord {
+  id: string;
+  status: string;
+  createdAt: string;
+  startedAt?: string;
+  completedAt?: string;
+  statusReason?: string;
+  provider?: string;
+  tokenCost?: number;
+  metadata?: Record<string, unknown>;
+  errorMessage?: string;
+}
+
 interface JobsResponse {
-  data: Array<{ id: string; status: string; createdAt: string; startedAt?: string; completedAt?: string; statusReason?: string }>;
+  data: JobRecord[];
 }
 
 const tabs = ["connectors", "prompts", "jobs"] as const;
@@ -74,6 +97,8 @@ export default function ProjectDetailPage() {
     queryFn: () => api(`/api/projects/${projectId}/change-jobs`),
     refetchInterval: 8000,
   });
+
+  const [selectedJob, setSelectedJob] = useState<JobRecord | null>(null);
 
   const setTab = useCallback(
     (next: string) => {
@@ -224,6 +249,11 @@ export default function ProjectDetailPage() {
                   </span>
                 </div>
                 <p style={{ marginTop: "0.75rem" }}>{prompt.promptText}</p>
+                {prompt.resultSummary ? (
+                  <PromptSummaryCard summary={prompt.resultSummary} provider={prompt.executionProvider} />
+                ) : (
+                  <p style={{ color: "#94a3b8", fontSize: "0.9rem" }}>Awaiting plan generation…</p>
+                )}
                 {prompt.jobs?.length ? (
                   <div style={{ marginTop: "0.5rem", color: "#94a3b8", fontSize: "0.9rem" }}>
                     Linked jobs: {prompt.jobs.map((job) => job.status).join(", ")}
@@ -244,15 +274,33 @@ export default function ProjectDetailPage() {
             {jobsQuery.data?.data.map((job) => (
               <article key={job.id} style={{ padding: "1rem", borderRadius: "1rem", border: "1px solid rgba(148,163,184,0.3)" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <h3 style={{ margin: 0 }}>{job.id.slice(0, 8)}</h3>
+                  <div>
+                    <h3 style={{ margin: 0 }}>{job.id.slice(0, 8)}</h3>
+                    <p style={{ color: "#94a3b8", margin: 0 }}>Queued {new Date(job.createdAt).toLocaleString()}</p>
+                  </div>
                   <StatusBadge status={job.status} />
                 </div>
-                <p style={{ color: "#94a3b8" }}>Queued {new Date(job.createdAt).toLocaleString()}</p>
                 {job.statusReason && <p style={{ color: "#94a3b8" }}>Reason: {job.statusReason}</p>}
+                <button
+                  onClick={() => setSelectedJob(job)}
+                  style={{
+                    marginTop: "0.5rem",
+                    borderRadius: "0.75rem",
+                    border: "1px solid rgba(148,163,184,0.3)",
+                    background: "transparent",
+                    color: "#f8fafc",
+                    padding: "0.4rem 0.9rem",
+                  }}
+                >
+                  View details
+                </button>
               </article>
             ))}
             {!jobsQuery.isLoading && jobsQuery.data?.data.length === 0 && <p>No jobs yet.</p>}
           </div>
+          {selectedJob && (
+            <JobDetailModal job={selectedJob} onClose={() => setSelectedJob(null)} />
+          )}
         </section>
       )}
     </main>
@@ -398,5 +446,119 @@ function PromptForm({
         {isSubmitting ? "Submitting…" : "Submit prompt"}
       </button>
     </form>
+  );
+}
+
+function PromptSummaryCard({ summary, provider }: { summary: PromptSummary; provider?: string }) {
+  return (
+    <div style={{ marginTop: "1rem", border: "1px solid rgba(34,211,238,0.3)", borderRadius: "1rem", padding: "1rem", background: "rgba(15,23,42,0.4)" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <p style={{ margin: 0, fontWeight: 600 }}>LLM Plan</p>
+        {provider && <small style={{ color: "#94a3b8" }}>Provider: {provider}</small>}
+      </div>
+      <p style={{ color: "#cbd5f5" }}>{summary.overview}</p>
+      <div style={{ marginTop: "0.5rem" }}>
+        <strong>Intent:</strong>
+        <p style={{ margin: "0.25rem 0 0", color: "#94a3b8" }}>{summary.intent}</p>
+      </div>
+      {summary.proposedChanges.length > 0 && (
+        <div style={{ marginTop: "0.5rem" }}>
+          <strong>Proposed changes</strong>
+          <ul>
+            {summary.proposedChanges.map((change, index) => (
+              <li key={`${change.area}-${index}`} style={{ color: "#cbd5f5" }}>
+                <span style={{ color: "#38bdf8" }}>{change.area}:</span> {change.description}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {summary.risks.length > 0 && (
+        <div style={{ marginTop: "0.5rem" }}>
+          <strong>Risks</strong>
+          <ul>
+            {summary.risks.map((risk, index) => (
+              <li key={`risk-${index}`} style={{ color: "#f87171" }}>
+                {risk}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {summary.nextSteps.length > 0 && (
+        <div style={{ marginTop: "0.5rem" }}>
+          <strong>Next steps</strong>
+          <ul>
+            {summary.nextSteps.map((step, index) => (
+              <li key={`step-${index}`} style={{ color: "#94a3b8" }}>
+                {step}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function JobDetailModal({ job, onClose }: { job: JobRecord; onClose: () => void }) {
+  return (
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        background: "rgba(5,6,10,0.85)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        zIndex: 50,
+        padding: "1rem",
+      }}
+      onClick={onClose}
+    >
+      <div
+        onClick={(event) => event.stopPropagation()}
+        style={{
+          width: "min(600px, 95vw)",
+          background: "#0f172a",
+          borderRadius: "1rem",
+          padding: "1.5rem",
+          border: "1px solid rgba(148,163,184,0.3)",
+        }}
+      >
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <h3 style={{ margin: 0 }}>Job {job.id}</h3>
+          <StatusBadge status={job.status} />
+        </div>
+        <p style={{ color: "#94a3b8" }}>Queued {new Date(job.createdAt).toLocaleString()}</p>
+        {job.startedAt && <p style={{ color: "#94a3b8" }}>Started {new Date(job.startedAt).toLocaleString()}</p>}
+        {job.completedAt && <p style={{ color: "#94a3b8" }}>Completed {new Date(job.completedAt).toLocaleString()}</p>}
+        {job.provider && <p style={{ color: "#94a3b8" }}>Provider: {job.provider}</p>}
+        {typeof job.tokenCost === "number" && <p style={{ color: "#94a3b8" }}>Tokens used: {job.tokenCost}</p>}
+        {job.errorMessage && <p style={{ color: "#f87171" }}>Error: {job.errorMessage}</p>}
+        {job.metadata && Object.keys(job.metadata).length > 0 && (
+          <details style={{ marginTop: "1rem" }}>
+            <summary style={{ cursor: "pointer" }}>Metadata</summary>
+            <pre style={{ background: "#020617", padding: "0.75rem", borderRadius: "0.75rem", color: "#94a3b8" }}>
+              {JSON.stringify(job.metadata, null, 2)}
+            </pre>
+          </details>
+        )}
+        <button
+          onClick={onClose}
+          style={{
+            marginTop: "1rem",
+            borderRadius: "0.75rem",
+            border: 0,
+            background: "#22d3ee",
+            color: "#082f49",
+            fontWeight: 600,
+            padding: "0.6rem 1.25rem",
+          }}
+        >
+          Close
+        </button>
+      </div>
+    </div>
   );
 }
