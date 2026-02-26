@@ -60,12 +60,13 @@ Suggested first tasks:
    cp .env.example .env
    # update secrets + connection strings as needed
    ```
-3. **Start local stack** (API + Postgres + Redis)
+3. **Start local stack** (API + Postgres + Redis + worker)
    ```bash
    docker compose up -d postgres redis
    npm run prisma:migrate -- --name init # first run only
    npm run prisma:generate
    npm run dev:api
+   npm run dev:worker # new BullMQ worker (separate terminal)
    ```
    Or run everything in containers:
    ```bash
@@ -90,8 +91,9 @@ See `docs/api/projects.md`, `docs/api/prompts.md`, `docs/api/change-jobs.md`, an
 - `POST /api/prompts` → persists prompt + enqueues `changeJob`
 - `GET /api/projects/:projectId/prompts` / `:promptId` → inspect requests + linked jobs
 - `GET /api/projects/:projectId/change-jobs` → monitor queue
-- Stub worker (in-memory) auto-progresses jobs; `POST /api/change-jobs/:id/transition` lets you force transitions for testing.
-- ⚠️ LLM/code execution is **stubbed**; jobs enter `RUNNING → SUCCEEDED` automatically with fake metadata.
+- BullMQ worker (Redis-backed) processes queued jobs asynchronously; run `npm run dev:worker` alongside the API.
+- `POST /api/change-jobs/:id/transition` still available for manual overrides during testing.
+- ⚠️ LLM/code execution is **stubbed**; the worker marks jobs `RUNNING → SUCCEEDED` automatically after a short delay.
 
 ### GitHub Connector Flow (MVP)
 1. `POST /api/projects/:projectId/connectors` (body: provider `github`, auth `pat`, repo owner/name, token)

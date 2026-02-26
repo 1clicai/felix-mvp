@@ -11,6 +11,7 @@
     "dev:dashboard": "npm run dev --workspace @felix/dashboard",
     "dev:founder": "npm run dev --workspace @felix/founder-console",
     "dev:api": "npm run dev --workspace @felix/api",
+    "dev:worker": "npm run worker --workspace @felix/api",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "db:push": "prisma db push",
